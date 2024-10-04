@@ -1,0 +1,110 @@
+#! /usr/bin/env ruby
+# frozen_string_literal: true
+
+require "bundler/inline"
+
+gemfile true do
+  source "https://rubygems.org"
+
+  gem "benchmark-ips"
+  gem "debug"
+  gem "dry-equalizer"
+  gem "equatable"
+  gem "wholeable", path: ".."
+end
+
+NAME = "demo"
+LABEL = "Demo"
+DESCRIPTION = "A demonstration."
+
+class Equal
+  include Dry::Equalizer(:name, :label, :description)
+
+  attr_reader :name, :label, :description
+
+  def initialize name: NAME, label: LABEL, description: DESCRIPTION
+    @name = name
+    @label = label
+    @description = description
+  end
+end
+
+class Equat
+  include Equatable
+
+  attr_reader :name, :label, :description
+
+  def initialize name: NAME, label: LABEL, description: DESCRIPTION
+    @name = name
+    @label = label
+    @description = description
+  end
+end
+
+class Whole
+  include Wholeable[:name, :label, :description]
+
+  def initialize name: NAME, label: LABEL, description: DESCRIPTION
+    @name = name
+    @label = label
+    @description = description
+  end
+end
+
+object = Object.new
+equal = Equal.new
+equat = Equat.new
+whole = Whole.new
+
+Benchmark.ips do |benchmark|
+  benchmark.config time: 5, warmup: 2
+
+  benchmark.report "Equalizer" do
+    equal.name
+    equal.label
+    equal.description
+    equal.hash
+    equal.inspect
+    equal == object
+    equal.eql? object
+  end
+
+  benchmark.report "Equatable" do
+    equat.name
+    equat.label
+    equat.description
+    equat.hash
+    equat.inspect
+    equat == object
+    equat.eql? object
+  end
+
+  benchmark.report "Wholeable" do
+    whole.name
+    whole.label
+    whole.description
+    whole.hash
+    whole.inspect
+    whole == object
+    whole.eql? object
+  end
+
+  benchmark.compare!
+end
+
+__END__
+
+ruby 3.3.5 (2024-09-03 revision ef084cc8f4) +YJIT [arm64-darwin23.6.0]
+Warming up --------------------------------------
+           Equalizer    83.854k i/100ms
+           Equatable    82.113k i/100ms
+           Wholeable    79.933k i/100ms
+Calculating -------------------------------------
+           Equalizer    820.933k (± 2.4%) i/s    (1.22 μs/i) -      4.109M in   5.007842s
+           Equatable    837.066k (± 2.5%) i/s    (1.19 μs/i) -      4.188M in   5.006031s
+           Wholeable    810.484k (± 2.3%) i/s    (1.23 μs/i) -      4.077M in   5.032499s
+
+Comparison:
+           Equatable:   837066.0 i/s
+           Equalizer:   820932.8 i/s - same-ish: difference falls within error
+           Wholeable:   810484.2 i/s - same-ish: difference falls within error

@@ -3,5 +3,15 @@ exclude_paths:
   - vendor
 
 detectors:
+  FeatureEnvy:
+    exclude:
+      - Wholeable::Builder#included
   LongParameterList:
     enabled: false
+  NestedIterators:
+    exclude:
+      - Wholeable::Builder#define_diff
+  TooManyStatements:
+    exclude:
+      - Wholeable::Builder#define_diff
+      - Wholeable::Builder#define_inspect
