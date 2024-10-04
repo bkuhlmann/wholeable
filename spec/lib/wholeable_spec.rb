@@ -3,14 +3,18 @@
 require "spec_helper"
 
 RSpec.describe Wholeable do
-  describe ".loader" do
-    it "eager loads" do
-      expectation = proc { described_class.loader.eager_load force: true }
-      expect(&expectation).not_to raise_error
-    end
+  subject(:whole) { implementation.new }
 
-    it "answers unique tag" do
-      expect(described_class.loader.tag).to eq("wholeable")
+  let :implementation do
+    Class.new do
+      include Wholeable[:name, :label]
+
+      def initialize name: "test", label: "Test"
+        @name = name
+        @label = label
+      end
     end
   end
+
+  it_behaves_like "a whole value object"
 end

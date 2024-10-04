@@ -1,16 +1,8 @@
 # frozen_string_literal: true
 
-require "zeitwerk"
-
-Zeitwerk::Loader.new.then do |loader|
-  loader.tag = File.basename __FILE__, ".rb"
-  loader.push_dir __dir__
-  loader.setup
-end
+require "wholeable/builder"
 
 # Main namespace.
 module Wholeable
-  def self.loader registry = Zeitwerk::Registry
-    @loader ||= registry.loaders.find { |loader| loader.tag == File.basename(__FILE__, ".rb") }
-  end
+  def self.[](*) = Builder.new(*)
 end
