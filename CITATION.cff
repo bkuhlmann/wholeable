@@ -1,0 +1,20 @@
+cff-version: 1.2.0
+message: Please use the following metadata when citing this project in your work.
+title: Wholeable
+abstract: Provides whole value object behavior.
+version: 0.0.0
+license: Hippocratic-2.1
+date-released: 2024-10-04
+authors:
+  - family-names: Kuhlmann
+    given-names: Brooke
+    affiliation: Alchemists
+    orcid: https://orcid.org/0000-0002-5810-6268
+keywords:
+ - ruby
+ - whole
+ - value
+ - equality
+repository-code: https://github.com/bkuhlmann/wholeable
+repository-artifact: https://rubygems.org/gems/wholeable
+url: https://alchemists.io/projects/wholeable
