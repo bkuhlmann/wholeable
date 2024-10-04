@@ -2,15 +2,34 @@
 :toclevels: 5
 :figure-caption!:
 
+:data_link: link:https://alchemists.io/articles/ruby_data[Data]
+:pattern_matching_link: link:https://alchemists.io/articles/ruby_pattern_matching[pattern matching]
+:ruby_link: link:https://www.ruby-lang.org[Ruby]
+:data_link: link:https://alchemists.io/articles/ruby_data[Data]
+:structs_link: link:https://alchemists.io/articles/ruby_structs[Structs]
+
 = Wholeable
+
+Wholeable allows you to turn your object into a _whole value object_ by ensuring object equality is determined by the values of the object instead of by identity. Whole value objects -- or value objects in general -- have the following traits as noted via link:https://en.wikipedia.org/wiki/Value_object[Wikipedia]:
+
+* Equality is determined by the values that make up an object and not by link:https://en.wikipedia.org/wiki/Identity_(object-oriented_programming)[identity] (i.e. memory address) which is the default behavior for all {ruby_link} objects except for {data_link} and {structs_link}.
+* Identity remains unique since two objects can have the same values but different identity. This means `BasicObject#equal?` is never overwritten -- which is strongly discouraged -- as per link:https://rubyapi.org/o/basicobject#method-i-3D-3D[BasicObject] documentation.
+* Value objects should be immutable (i.e. frozen) by default. This implementation enforces a strict adherence to immutability in order to ensure value objects remain equal and discourage mutation.
 
 toc::[]
 
 == Features
 
+* Ensures equality (i.e. `#==` and `#eql?`) is determined by attribute values and not object identity (i.e. `#equal?`).
+* Allows you to compare two objects of same or different types and see their differences.
+* Provides {pattern_matching_link}.
+* Automatically defines public attribute readers (i.e. `.attr_reader`) based on provided keys.
+* Ensures object inspection (i.e. `#inspect`) shows all registered attributes.
+* Ensures object is frozen upon initialization.
+
 == Requirements
 
-. link:https://www.ruby-lang.org[Ruby].
+. {ruby_link}.
 
 == Setup
 
@@ -45,6 +64,83 @@ require "wholeable"
 ----
 
 == Usage
+
+To use, include Wholeable along with a list of attributes that make up your whole value object:
+
+[source,ruby]
+----
+class Person
+  include Wholeable[:name, :email]
+
+  def initialize name:, email:
+    @name = name
+    @email = email
+  end
+end
+
+jill = Person.new name: "Jill Smith", email: "jill@example.com"
+jill_two = Person.new name: "Jill Smith", email: "jill@example.com"
+jack = Person.new name: "Jack Smith", email: "jack@example.com"
+
+jill.name              # "Jill Smith"
+jill.email             # "jill@example.com"
+
+jill.frozen?           # true
+jill_two.frozen?       # true
+jack.frozen?           # true
+
+jill.inspect           # "#<Person @name=\"Jill Smith\", @email=\"jill@example.com\">"
+jill_two.inspect       # "#<Person @name=\"Jill Smith\", @email=\"jill@example.com\">"
+jack.inspect           # "#<Person @name=\"Jack Smith\", @email=\"jack@example.com\">"
+
+jill == jill           # true
+jill == jill_two       # true
+jill == jack           # false
+
+jill.diff(jill)        # {}
+jill.diff(jack)        # {
+                       #   name: ["Jill Smith", "Jack Smith"],
+                       #   email: ["jill@example.com", "jack@example.com"]
+                       # }
+jill.diff(Object.new)  # {:name=>["Jill Smith", nil], :email=>["jill@example.com", nil]}
+
+jill.eql? jill         # true
+jill.eql? jill_two     # true
+jill.eql? jack         # false
+
+jill.equal? jill       # true
+jill.equal? jill_two   # false
+jill.equal? jack       # false
+
+jill.hash              # 3650965837788801745
+jill_two.hash          # 3650965837788801745
+jack.hash              # 4460658980509842640
+
+jill.to_a              # ["Jill Smith", "jill@example.com"]
+jack.to_a              # ["Jack Smith", "jack@example.com"]
+
+jill.to_h              # {:name=>"Jill Smith", :email=>"jill@example.com"}
+jack.to_h              # {:name=>"Jack Smith", :email=>"jack@example.com"}
+
+jill.with name: "Sue"  # #<Person @name="Sue", @email="jill@example.com">
+jill.with bad: "!"     # unknown keyword: :bad (ArgumentError)
+----
+
+As you can see, object equality is determined by the object's values and _not_ by the object's identity. When you include `Wholeable` along with a list of keys, the following happens:
+
+. The corresponding _public_ `attr_reader` for each key is created which saves you time and reduces double entry when implementing your whole value object.
+. The `#to_a` and `#to_h` methods are added for convenience in order to play nice with {data_link} and {structs_link}.
+. The `#deconstruct` and `#deconstruct_keys` aliases are created so you can leverage {pattern_matching_link}.
+. The `#==`, `#eql?`, `#hash`, `#inspect`, and `#with` methods are added to provide whole value behavior.
+. The object is immediately frozen after initialization to ensure your instance is _immutable_ by default.
+
+== Caveats
+
+Whole values can be broken via the following:
+
+* *Duplication*: Sending the `#dup` message will cause your whole value object to be unfrozen. This might be desired in certain situations but make sure to refreeze afterwards.
+* *Post Attributes*: Adding additional attributes after what is defined when including `Wholeable` will break your whole value object. To prevent this, let Wholeable manage this for you (easiest). Otherwise (harder), you can manually override `#==`, `#eql?`, `#hash`, `#inspect`, `#to_a`, and `#to_h` behavior at which point you don't need Wholeable anymore.
+* *Deep Freezing*: The automatic freezing of your instances is shallow and will not deeply freeze nested attributes. This behavior mimics the behavior of {data_link} objects.
 
 == Development
 
@@ -81,7 +177,7 @@ bin/rake
 
 == link:https://alchemists.io/policies/contributions[Contributions]
 
-== link:%<organization_uri>s/policies/developer_certificate_of_origin[Developer Certificate of Origin]
+== link:https://alchemists.io/policies/developer_certificate_of_origin[Developer Certificate of Origin]
 
 == link:https://alchemists.io/projects/wholeable/versions[Versions]
 
