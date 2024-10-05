@@ -4,5 +4,5 @@ require "wholeable/builder"
 
 # Main namespace.
 module Wholeable
-  def self.[](*) = Builder.new(*)
+  def self.[](*, **) = Builder.new(*, **)
 end

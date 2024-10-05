@@ -24,7 +24,7 @@ RSpec.shared_examples "a whole value object" do
   end
 
   describe "#frozen?" do
-    it "answers true" do
+    it "answers true by default" do
       expect(whole.frozen?).to be(true)
     end
   end

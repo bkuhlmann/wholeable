@@ -9,9 +9,10 @@ module Wholeable
       descendant.alias_method :to_s, :inspect
     end
 
-    def initialize *keys
+    def initialize *keys, kind: :immutable
       super()
       @keys = keys.uniq
+      @kind = kind
       @members = []
       setup
     end
@@ -23,11 +24,11 @@ module Wholeable
       descendant.class_eval <<-METHODS, __FILE__, __LINE__ + 1
         def self.[](...) = new(...)
 
-        def self.new(...) = super.freeze
+        def self.new(...) = #{mutable?} ? super.dup : super.freeze
 
         def self.members = #{members}
 
-        attr_reader #{keys.map(&:inspect).join ", "}
+        #{mutable? ? :attr_accessor : :attr_reader} #{keys.map(&:inspect).join ", "}
       METHODS
 
       self.class.add_aliases descendant
@@ -35,7 +36,7 @@ module Wholeable
 
     private
 
-    attr_reader :keys, :members
+    attr_reader :keys, :kind, :members
 
     def setup
       private_methods.grep(/\A(define)_/).sort.each { |method| __send__ method }
@@ -45,6 +46,8 @@ module Wholeable
     def coalesce_members descendant
       members.replace(descendant.respond_to?(:members) ? (descendant.members + keys).uniq : keys)
     end
+
+    def mutable? = kind == :mutable
 
     def define_diff
       define_method :diff do |other|
