@@ -4,6 +4,12 @@ RSpec.shared_examples "a whole value object" do
   let(:similar) { implementation.new }
   let(:different) { implementation.new name: "odd" }
 
+  describe ".members" do
+    it "answers members" do
+      expect(implementation.members).to eq(%i[name label])
+    end
+  end
+
   describe "#initialize" do
     it "answers attributes" do
       expect(whole).to have_attributes(name: "test", label: "Test")
@@ -85,6 +91,12 @@ RSpec.shared_examples "a whole value object" do
   describe "#inspect" do
     it "answers inspection information" do
       expect(whole.inspect).to match(/#<#<Class:.+{18}>\s@name="test",\s@label="Test">/)
+    end
+  end
+
+  describe "#members" do
+    it "answers array of attribute keys" do
+      expect(whole.members).to eq(%i[name label])
     end
   end
 

@@ -3,11 +3,11 @@ exclude_paths:
   - vendor
 
 detectors:
-  FeatureEnvy:
-    exclude:
-      - Wholeable::Builder#included
   LongParameterList:
     enabled: false
+  ManualDispatch:
+    exclude:
+      - Wholeable::Builder#coalesce_members
   NestedIterators:
     exclude:
       - Wholeable::Builder#define_diff

@@ -6,18 +6,21 @@ module Wholeable
     def initialize *keys
       super()
       @keys = keys.uniq
-      private_methods.grep(/\A(define)_/).sort.each { |method| __send__ method }
-      freeze
+      @members = []
+      setup
     end
 
     def included descendant
       super
+      coalesce_members descendant
 
-      descendant.class_eval <<-READER, __FILE__, __LINE__ + 1
+      descendant.class_eval <<-METHODS, __FILE__, __LINE__ + 1
         def self.new(...) = super.freeze
 
+        def self.members = #{members}
+
         attr_reader #{keys.map(&:inspect).join ", "}
-      READER
+      METHODS
 
       descendant.alias_method :deconstruct, :to_a
       descendant.alias_method :deconstruct_keys, :to_h
@@ -25,7 +28,16 @@ module Wholeable
 
     private
 
-    attr_reader :keys
+    attr_reader :keys, :members
+
+    def setup
+      private_methods.grep(/\A(define)_/).sort.each { |method| __send__ method }
+      freeze
+    end
+
+    def coalesce_members descendant
+      members.replace(descendant.respond_to?(:members) ? (descendant.members + keys).uniq : keys)
+    end
 
     def define_diff
       define_method :diff do |other|
@@ -46,34 +58,36 @@ module Wholeable
       define_method(:==) { |other| other.is_a?(self.class) && hash == other.hash }
     end
 
-    def define_hash local_keys = keys
+    def define_hash
       define_method :hash do
-        local_keys.map { |key| public_send key }
-                  .prepend(self.class)
-                  .hash
+        members.map { |key| public_send key }
+               .prepend(self.class)
+               .hash
       end
     end
 
-    def define_inspect local_keys = keys
+    def define_inspect
       define_method :inspect do
         klass = self.class
         name = klass.name || klass.inspect
 
-        local_keys.map { |key| "@#{key}=#{public_send(key).inspect}" }
-                  .join(", ")
-                  .then { |pairs| "#<#{name} #{pairs}>" }
+        members.map { |key| "@#{key}=#{public_send(key).inspect}" }
+               .join(", ")
+               .then { |pairs| "#<#{name} #{pairs}>" }
       end
     end
 
-    def define_to_a local_keys = keys
+    def define_members(local_members = members) = define_method(:members) { local_members }
+
+    def define_to_a
       define_method :to_a do
-        local_keys.reduce([]) { |array, key| array.append public_send(key) }
+        members.reduce([]) { |collection, key| collection.append public_send(key) }
       end
     end
 
-    def define_to_h local_keys = keys
+    def define_to_h
       define_method :to_h do
-        local_keys.each.with_object({}) { |key, dictionary| dictionary[key] = public_send key }
+        members.each.with_object({}) { |key, attributes| attributes[key] = public_send key }
       end
     end
 
