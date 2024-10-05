@@ -119,6 +119,12 @@ RSpec.shared_examples "a whole value object" do
     end
   end
 
+  describe "#to_s" do
+    it "answers string" do
+      expect(whole.to_s).to match(/#<#<Class:.+{18}>\s@name="test",\s@label="Test">/)
+    end
+  end
+
   describe "#with" do
     it "answers new instance with defaults" do
       expect(whole.with).to have_attributes(name: "test", label: "Test")

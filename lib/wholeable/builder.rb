@@ -3,6 +3,12 @@
 module Wholeable
   # Provides core equality behavior.
   class Builder < Module
+    def self.add_aliases descendant
+      descendant.alias_method :deconstruct, :to_a
+      descendant.alias_method :deconstruct_keys, :to_h
+      descendant.alias_method :to_s, :inspect
+    end
+
     def initialize *keys
       super()
       @keys = keys.uniq
@@ -24,8 +30,7 @@ module Wholeable
         attr_reader #{keys.map(&:inspect).join ", "}
       METHODS
 
-      descendant.alias_method :deconstruct, :to_a
-      descendant.alias_method :deconstruct_keys, :to_h
+      self.class.add_aliases descendant
     end
 
     private
