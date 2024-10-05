@@ -17,6 +17,8 @@ NAME = "demo"
 LABEL = "Demo"
 DESCRIPTION = "A demonstration."
 
+DataDemo = Data.define :name, :label, :description
+
 class Equal
   include Dry::Equalizer(:name, :label, :description)
 
@@ -41,6 +43,8 @@ class Equat
   end
 end
 
+StructDemo = Struct.new :name, :label, :description
+
 class Whole
   include Wholeable[:name, :label, :description]
 
@@ -52,12 +56,40 @@ class Whole
 end
 
 object = Object.new
+data = DataDemo[name: NAME, label: LABEL, description: DESCRIPTION]
 equal = Equal.new
 equat = Equat.new
+struct = StructDemo[name: NAME, label: LABEL, description: DESCRIPTION]
 whole = Whole.new
+
+puts "\nINITIALIZATION\n\n"
 
 Benchmark.ips do |benchmark|
   benchmark.config time: 5, warmup: 2
+
+  benchmark.report("Data") { DataDemo[name: NAME, label: LABEL, description: DESCRIPTION] }
+  benchmark.report("Equalizer") { Equal.new }
+  benchmark.report("Equatable") { Equat.new }
+  benchmark.report("Struct") { StructDemo[name: NAME, label: LABEL, description: DESCRIPTION] }
+  benchmark.report("Whole") { Whole.new }
+
+  benchmark.compare!
+end
+
+puts "BEHAVIOR\n\n"
+
+Benchmark.ips do |benchmark|
+  benchmark.config time: 5, warmup: 2
+
+  benchmark.report "Data" do
+    data.name
+    data.label
+    data.description
+    data.hash
+    data.inspect
+    data == object
+    data.eql? object
+  end
 
   benchmark.report "Equalizer" do
     equal.name
@@ -79,6 +111,16 @@ Benchmark.ips do |benchmark|
     equat.eql? object
   end
 
+  benchmark.report "Struct" do
+    struct.name
+    struct.label
+    struct.description
+    struct.hash
+    struct.inspect
+    struct == object
+    struct.eql? object
+  end
+
   benchmark.report "Wholeable" do
     whole.name
     whole.label
@@ -94,17 +136,48 @@ end
 
 __END__
 
+INITIALIZATION
+
 ruby 3.3.5 (2024-09-03 revision ef084cc8f4) +YJIT [arm64-darwin23.6.0]
 Warming up --------------------------------------
-           Equalizer    83.854k i/100ms
-           Equatable    82.113k i/100ms
-           Wholeable    79.933k i/100ms
+                Data   470.027k i/100ms
+           Equalizer     1.255M i/100ms
+           Equatable     1.225M i/100ms
+              Struct   422.010k i/100ms
+               Whole   805.945k i/100ms
 Calculating -------------------------------------
-           Equalizer    820.933k (± 2.4%) i/s    (1.22 μs/i) -      4.109M in   5.007842s
-           Equatable    837.066k (± 2.5%) i/s    (1.19 μs/i) -      4.188M in   5.006031s
-           Wholeable    810.484k (± 2.3%) i/s    (1.23 μs/i) -      4.077M in   5.032499s
+                Data      4.750M (± 1.1%) i/s  (210.53 ns/i) -     23.971M in   5.047225s
+           Equalizer     15.038M (± 2.0%) i/s   (66.50 ns/i) -     75.308M in   5.009896s
+           Equatable     15.025M (± 1.9%) i/s   (66.56 ns/i) -     75.948M in   5.056590s
+              Struct      4.579M (± 1.1%) i/s  (218.38 ns/i) -     23.211M in   5.069228s
+               Whole      9.408M (± 1.2%) i/s  (106.29 ns/i) -     47.551M in   5.055033s
 
 Comparison:
-           Equatable:   837066.0 i/s
-           Equalizer:   820932.8 i/s - same-ish: difference falls within error
-           Wholeable:   810484.2 i/s - same-ish: difference falls within error
+           Equalizer: 15037962.1 i/s
+           Equatable: 15025110.6 i/s - same-ish: difference falls within error
+               Whole:  9407938.7 i/s - 1.60x  slower
+                Data:  4750013.8 i/s - 3.17x  slower
+              Struct:  4579253.1 i/s - 3.28x  slower
+
+BEHAVIOR
+
+ruby 3.3.5 (2024-09-03 revision ef084cc8f4) +YJIT [arm64-darwin23.6.0]
+Warming up --------------------------------------
+                Data   129.006k i/100ms
+           Equalizer    80.120k i/100ms
+           Equatable    81.652k i/100ms
+              Struct   129.832k i/100ms
+           Wholeable    78.861k i/100ms
+Calculating -------------------------------------
+                Data      1.336M (± 3.6%) i/s  (748.33 ns/i) -      6.708M in   5.027517s
+           Equalizer    827.838k (± 1.7%) i/s    (1.21 μs/i) -      4.166M in   5.034078s
+           Equatable    845.646k (± 1.9%) i/s    (1.18 μs/i) -      4.246M in   5.022709s
+              Struct      1.341M (± 1.7%) i/s  (745.89 ns/i) -      6.751M in   5.037050s
+           Wholeable    816.232k (± 1.9%) i/s    (1.23 μs/i) -      4.101M in   5.025751s
+
+Comparison:
+              Struct:  1340687.5 i/s
+                Data:  1336304.1 i/s - same-ish: difference falls within error
+           Equatable:   845645.6 i/s - 1.59x  slower
+           Equalizer:   827837.9 i/s - 1.62x  slower
+           Wholeable:   816232.0 i/s - 1.64x  slower
