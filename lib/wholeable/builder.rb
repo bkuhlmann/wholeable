@@ -15,6 +15,8 @@ module Wholeable
       coalesce_members descendant
 
       descendant.class_eval <<-METHODS, __FILE__, __LINE__ + 1
+        def self.[](...) = new(...)
+
         def self.new(...) = super.freeze
 
         def self.members = #{members}

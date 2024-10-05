@@ -4,6 +4,13 @@ RSpec.shared_examples "a whole value object" do
   let(:similar) { implementation.new }
   let(:different) { implementation.new name: "odd" }
 
+  describe ".[]" do
+    it "answers attributes" do
+      instance = implementation[name: "test", label: "Test"]
+      expect(instance).to have_attributes(name: "test", label: "Test")
+    end
+  end
+
   describe ".members" do
     it "answers members" do
       expect(implementation.members).to eq(%i[name label])
