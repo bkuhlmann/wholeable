@@ -23,9 +23,10 @@ toc::[]
 * Ensures equality (i.e. `#==` and `#eql?`) is determined by attribute values and not object identity (i.e. `#equal?`).
 * Allows you to compare two objects of same or different types and see their differences.
 * Provides {pattern_matching_link}.
-* Automatically defines public attribute readers (i.e. `.attr_reader`) based on provided keys.
+* Provides inheritance so you can subclass and add attributes or provide additional behavior.
+* Automatically defines public attribute readers (i.e. `.attr_reader`) if _immutable_ (default) or public attribute readers and writers (i.e. `.attr_accessor`) if _mutable_.
 * Ensures object inspection (i.e. `#inspect`) shows all registered attributes.
-* Ensures object is frozen upon initialization.
+* Ensures object is frozen upon initialization by default.
 
 == Requirements
 
@@ -78,9 +79,12 @@ class Person
   end
 end
 
-jill = Person.new name: "Jill Smith", email: "jill@example.com"
-jill_two = Person.new name: "Jill Smith", email: "jill@example.com"
-jack = Person.new name: "Jack Smith", email: "jack@example.com"
+jill = Person[name: "Jill Smith", email: "jill@example.com"]
+jill_two = Person[name: "Jill Smith", email: "jill@example.com"]
+jack = Person[name: "Jack Smith", email: "jack@example.com"]
+
+Person.members         # [:name, :email]
+jill.members           # [:name, :email]
 
 jill.name              # "Jill Smith"
 jill.email             # "jill@example.com"
@@ -122,25 +126,217 @@ jack.to_a              # ["Jack Smith", "jack@example.com"]
 jill.to_h              # {:name=>"Jill Smith", :email=>"jill@example.com"}
 jack.to_h              # {:name=>"Jack Smith", :email=>"jack@example.com"}
 
+jill.to_s              # "#<Person @name=\"Jill Smith\", @email=\"jill@example.com\">"
+jill_two.to_s          # "#<Person @name=\"Jill Smith\", @email=\"jill@example.com\">"
+jack.to_s              # "#<Person @name=\"Jack Smith\", @email=\"jack@example.com\">"
+
 jill.with name: "Sue"  # #<Person @name="Sue", @email="jill@example.com">
 jill.with bad: "!"     # unknown keyword: :bad (ArgumentError)
 ----
 
 As you can see, object equality is determined by the object's values and _not_ by the object's identity. When you include `Wholeable` along with a list of keys, the following happens:
 
-. The corresponding _public_ `attr_reader` for each key is created which saves you time and reduces double entry when implementing your whole value object.
-. The `#to_a` and `#to_h` methods are added for convenience in order to play nice with {data_link} and {structs_link}.
+. The corresponding _public_ `attr_reader` (or `attr_accessor` if mutable) for each key is created which saves you time and reduces double entry when implementing your whole value object.
+. The `#to_a`, `#to_h`, and `#to_s` methods are added for convenience and to be compatible with {data_link} and {structs_link}.
 . The `#deconstruct` and `#deconstruct_keys` aliases are created so you can leverage {pattern_matching_link}.
 . The `#==`, `#eql?`, `#hash`, `#inspect`, and `#with` methods are added to provide whole value behavior.
 . The object is immediately frozen after initialization to ensure your instance is _immutable_ by default.
 
+=== Initialization
+
+As shown above, you can create an instance of your whole value object by using `.[]`. Example:
+
+[source,ruby]
+----
+Person[name: "Jill Smith", email: "jill@example.com"]
+----
+
+Alternatively, you can create new instances using `.new`. Example:
+
+[source,ruby]
+----
+Person.new name: "Jill Smith", email: "jill@example.com"
+----
+
+Both methods work but use `.[]` when supplying arguments and `.new` when you don't have any arguments.
+
+=== Mutability
+
+All whole value objects are frozen by default. You can change behavior by specifying whether instances should be mutable by passing `kind: :mutable` as a keyword argument. Example:
+
+[source,ruby]
+----
+class Person
+  include Wholeable[:name, :email, kind: :mutable]
+
+  def initialize name: "Jill", email: "jill@example.com"
+    @name = name
+    @email = email
+  end
+end
+
+jill = Person.new
+jill.frozen? # false
+----
+
+When your object is mutable, you'll also have access to setter methods in addition to the normal getter methods. Example:
+
+[source,ruby]
+----
+jill.name # "Jill"
+jill.name = "Jayne"
+jill.name # "Jayne"
+----
+
+You can also make your object immutable by using `kind: :immutable` but this is default behavior and redundant. Any invalid kind (example: `kind: :bogus`) will be ignored and default to being immutable.
+
+=== Inheritance
+
+Unlike {data_link} or {structs_link}, you can subclass a whole value object. Example:
+
+[source,ruby]
+----
+class Person
+  include Wholeable[:name]
+
+  def initialize name:
+    @name = name
+  end
+end
+
+class Contact < Person
+  include Wholeable[:email]
+
+  def initialize(email:, **)
+    super(**)
+    @email = email
+  end
+end
+
+contact = Contact[name: "Jill Smith", email: "jill@example.com"]
+
+contact.to_h     # {name: "Jill Smith", email: "jill@example.com"}
+contact.frozen?  # true
+----
+
+Notice `Contact` inherits from `Person` while only defining the attributes that make it unique. You don't need to redefine the same attributes found in the superclass as that would be redundant and defeat the purpose of subclassing in the first place.
+
+When subclassing, each subclass has access to the same attributes defined by the superclass no matter how deep your ancestry is. This does mean you must pass the remaining attributes to the superclass via the double splat.
+
+Mutability is honored but is specific to each object in the ancestry. In other words, if the entire ancestry is immutable then no object can mutate an attribute defined in the ancestry. The same applies if the entire ancestry is mutable except, now, any child can mutate any attribute previously defined by the ancestry. Any attribute that is mutated is only mutated specific to the subclass as is standard inheritance behavior.
+
+If your ancestry is a mixed (immutable and mutable) then behavior is specific to each child in the ancestry. This means a mutable child won't make the entire ancestry mutable, only the child will be mutable. Best practice is to architect your ancestry so immutability or mutability is the same across all objects. To illustrate, here's an example with an immutable parent and mutable child:
+
+[source,ruby]
+----
+class Parent
+  include Wholeable[:one]
+
+  def initialize one: 1
+    @one = one
+  end
+end
+
+class Child < Parent
+  include Wholeable[:two, kind: :mutable]
+
+  def initialize(two: 2, **)
+    super(**)
+    @two = two
+  end
+end
+
+child = Child.new
+
+child.one = 100  # NoMethodError
+child.two = 200  # 200
+child.frozen?    # false
+----
+
+Notice, when attempting to mutate the `one` attribute, you get a `NoMethodError`. This is because `#one=` is defined by the _immutable_ parent while `#two=` is defined on the _mutable_ child.
+
+If you the flip mutability of your ancestry, you can make your parent mutable while the child immutable for different behavior. Example:
+
+[source,ruby]
+----
+class Parent
+  include Wholeable[:one, kind: :mutable]
+
+  def initialize one: 1
+    @one = one
+  end
+end
+
+class Child < Parent
+  include Wholeable[:two]
+
+  def initialize(two: 2, **)
+    super(**)
+    @two = two
+  end
+end
+
+child = Child.new
+
+child.one = 100  # FrozenError
+child.two = 200  # NoMethodError
+child.frozen?    # true
+----
+
+In this case, you get a `FrozenError` for `#one=` because the parent is _mutable_ and defined the `#one=` method but the child is _immutable_ which caused the associated attribute to be frozen. On the other hand, the `#two=` method is never defined by the subclass due to being immutable and so you you get a: `NoMethodError`.
+
+_Again, if using inheritance, ensure immutability or mutability remains consistent throughout the entire ancestry._
+
 == Caveats
 
-Whole values can be broken via the following:
+Whole values can be broken via the following situations:
 
-* *Duplication*: Sending the `#dup` message will cause your whole value object to be unfrozen. This might be desired in certain situations but make sure to refreeze afterwards.
 * *Post Attributes*: Adding additional attributes after what is defined when including `Wholeable` will break your whole value object. To prevent this, let Wholeable manage this for you (easiest). Otherwise (harder), you can manually override `#==`, `#eql?`, `#hash`, `#inspect`, `#to_a`, and `#to_h` behavior at which point you don't need Wholeable anymore.
-* *Deep Freezing*: The automatic freezing of your instances is shallow and will not deeply freeze nested attributes. This behavior mimics the behavior of {data_link} objects.
+* *Deep Freezing*: The automatic freezing of your instances is shallow and will not deep freeze nested attributes. This behavior mimics the behavior of {data_link} objects.
+
+== Performance
+
+The performance of this gem is good but definitely slower than native support for {data_link} and {structs_link} because they are written in C. To illustrate, here's a micro benchmark for comparison:
+
+----
+INITIALIZATION
+
+ruby 3.3.5 (2024-09-03 revision ef084cc8f4) +YJIT [arm64-darwin23.6.0]
+Warming up --------------------------------------
+                Data   470.027k i/100ms
+              Struct   422.010k i/100ms
+               Whole   805.945k i/100ms
+Calculating -------------------------------------
+                Data      4.750M (± 1.1%) i/s  (210.53 ns/i) -     23.971M in   5.047225s
+              Struct      4.579M (± 1.1%) i/s  (218.38 ns/i) -     23.211M in   5.069228s
+               Whole      9.408M (± 1.2%) i/s  (106.29 ns/i) -     47.551M in   5.055033s
+
+Comparison:
+               Whole:  9407938.7 i/s - 1.60x  slower
+                Data:  4750013.8 i/s - 3.17x  slower
+              Struct:  4579253.1 i/s - 3.28x  slower
+
+BEHAVIOR
+
+ruby 3.3.5 (2024-09-03 revision ef084cc8f4) +YJIT [arm64-darwin23.6.0]
+Warming up --------------------------------------
+                Data   129.006k i/100ms
+              Struct   129.832k i/100ms
+           Wholeable    78.861k i/100ms
+Calculating -------------------------------------
+                Data      1.336M (± 3.6%) i/s  (748.33 ns/i) -      6.708M in   5.027517s
+              Struct      1.341M (± 1.7%) i/s  (745.89 ns/i) -      6.751M in   5.037050s
+           Wholeable    816.232k (± 1.9%) i/s    (1.23 μs/i) -      4.101M in   5.025751s
+
+Comparison:
+              Struct:  1340687.5 i/s
+                Data:  1336304.1 i/s - same-ish: difference falls within error
+           Wholeable:   816232.0 i/s - 1.64x  slower
+----
+
+While the above isn't bad, you can definitely see this gem is slower than Ruby's own native objects when interacting with it despite being faster upon initialization.
+
+Default to using {data_link} or {structs_link} but, if you find yourself needing a whole value object with more behavior than what a `Data` or `Struct` can provide, then this gem is a good solution.
 
 == Development
 
