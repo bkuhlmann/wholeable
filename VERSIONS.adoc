@@ -1,5 +1,15 @@
 = Versions
 
+== 0.1.0 (2024-10-06)
+
+* ✅ Fixed Git ignore configuration - Brooke Kuhlmann
+* 🟢 Added class initialization setter - Brooke Kuhlmann
+* 🟢 Added data and struct benchmarks - Brooke Kuhlmann
+* 🟢 Added members - Brooke Kuhlmann
+* 🟢 Added optional mutability - Brooke Kuhlmann
+* 🟢 Added string casting - Brooke Kuhlmann
+* 🟢 Added version release notes - Brooke Kuhlmann
+
 == 0.0.0 (2024-10-04)
 
 * 🟢 Added benchmark - Brooke Kuhlmann
