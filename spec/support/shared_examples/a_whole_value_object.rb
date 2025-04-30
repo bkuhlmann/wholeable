@@ -69,15 +69,15 @@ RSpec.shared_examples "a whole value object" do
 
   describe "#==" do
     it "answers true when values are equal" do
-      expect((whole == similar)).to be(true)
+      expect(whole == similar).to be(true)
     end
 
     it "answers false when values are not equal" do
-      expect((whole == different)).to be(false)
+      expect(whole == different).to be(false)
     end
 
     it "answers false with different type" do
-      expect((whole == "other")).to be(false)
+      expect(whole == "other").to be(false)
     end
   end
 
